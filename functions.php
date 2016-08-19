@@ -1,5 +1,15 @@
 <?php
     /**
+     * 功能：检测一个字符串是否是邮件地址格式
+     * @param  string  $value 待检测字符串
+     * @return boolean
+     */
+    function is_email($value) {
+        return preg_match("/^[0-9a-zA-Z]+(?:[\_\.\-][a-z0-9\-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\.[a-zA-Z]+$/i", $value);
+    }
+
+
+    /**
      * 获取客户端IP地址
      * @param   integer $type 返回类型 0 返回IP地址 1 返回IPV4地址数字
      * @param   boolean $adv  是否进行高级模式获取（有可能被伪装） 
