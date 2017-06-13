@@ -1,10 +1,8 @@
 <?php
-
     /**
      * 常用验证
-     * @author fearotor <769049825@qq.com>
-     * @param  string|integer   $value 待验证值
-     * @param  string           $type  验证类型
+     * @param  mixed   $value 待验证值
+     * @param  string  $type  验证类型
      * @return boolean
      */
     function validation($value,$type)
@@ -34,10 +32,11 @@
         $types=array(
             'email'     =>"/^[0-9a-zA-Z]+(?:[\_\.\-][a-z0-9\-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\.[a-zA-Z]+$/i",//邮箱
             'money'     =>"/^(0|([1-9][0-9]*))([\.][0-9]{1,2})?$/",//金额
-            'cellphone' =>"/^[{$all_phone_prefix}][0-9]{8}$/",//手机号
+            'cellphone' =>"/^($all_phone_prefix)[0-9]{8}$/",//手机号
             'password'  =>"/^[0-9a-zA-Z_]{6,16}$/i",//密码 由数字、字母、下划线组成,长度6-16位
             'username'  =>"/^[a-z][0-9a-z_]{0,29}$/", //用户名 小写字母开头由数字、小写字母、下划线组成,长度不大于30位
             'int'       =>"/^[-]?0|([1-9][0-9]*)$/",//整数
+            'int_no_zore'=>"/^[-]?[1-9][0-9]*$/",//非零整数
             'z_int'     =>"/^[1-9][0-9]*$/",//正整数
             'z_int_zero'=>"/^0|([1-9][0-9]*)$/",//正整数和零
             'f_int'     =>"/^[-][1-9][0-9]*$/",//负整数
@@ -66,259 +65,63 @@
     }
 
     /**
-     * 获取当前时间毫秒
+     * 字符串截取，支持中文和其他编码  本函数依赖 str_to_array 函数
+     * @param  string       $str     需要转换的字符串
+     * @param  integer      $start   开始位置  该参数详细用法同substr
+     * @param  integer|null $len     截取长度 null表示直到字符串结尾 该参数详细用法同substr
+     * @param  string       $charset 编码格式
+     * @param  string       $suffix  截断显示字符
      * @return string
      */
-    function get_microtime(){
-        list($usec, $sec) = explode(' ', microtime());
-        $usec2msec = $usec * 1000;    //计算微秒部分的毫秒数(微秒部分并不是微秒,这部分的单位是秒)
-        $sec2msec = $sec * 1000;    //计算秒部分的毫秒数
-        $usec2msec2float = (float)$usec2msec;    
-        $sec2msec2float = (float)$sec2msec;    
-        $msec = $usec2msec2float + $sec2msec2float; //加起来就对了
-        $arrMsc = explode('.', $msec);
-        return $arrMsc[0];
-    }
-
-    /**
-     * 功能：字节格式化 把字节数格式为 B K M G T 描述的大小
-     * @param  string|int $size 字节数
-     * @param  int     $dec  小数点后保留的位数
-     * @return string
-     */
-    function byte_format($size, $dec=2)
+    function msubstr($str, $start=0, $len=null, $charset="utf-8", $suffix='')
     {
-        if((is_int($size) || is_string($size)) && (is_int($dec) || is_string($dec))){
+        if(!(is_scalar($str) && $str!==true && $str!==false)) {
             return '';
         }
-        $size=intval($size);
-        $size=intval($dec);
-        $a = array("B", "KB", "MB", "GB", "TB", "PB");
-        $pos = 0;
-        while ($size >= 1024) {
-             $size /= 1024;
-               $pos++;
-        }
-        return round($size,$dec)." ".$a[$pos];
-    }
-
-    /**
-     * 根据PHP各种类型变量生成唯一标识号
-     * @param  mixed  $mix 变量
-     * @return string
-     */
-    function to_guid_string($mix)
-    {
-        if (is_object($mix) && function_exists('spl_object_hash')) {
-            return spl_object_hash($mix);
-        } elseif (is_resource($mix)) {
-            $mix = get_resource_type($mix) . strval($mix);
-        } else {
-            $mix = serialize($mix);
-        }
-        return md5($mix);
-    }
-
-    /**
-     * 优化的require_once
-     * @param  string  $filename 文件地址
-     * @return boolean
-     */
-    function require_cache($filename)
-    {
-        if(!is_string($filename)){
-            return false;
-        }
-
-        static $_importFiles = array();
-        if (!isset($_importFiles[$filename])) {
-            if (file_exists_case($filename)) {
-                require $filename;
-                $_importFiles[$filename] = true;
-            } else {
-                $_importFiles[$filename] = false;
-            }
-        }
-        return $_importFiles[$filename];
-    }
-
-    /**
-     * 加密解密字符串
-     * @param  string  $string    明文 或 密文
-     * @param  string  $operation decode表示解密,encode表示加密
-     * @param  string  $key       密匙
-     * @param  int     $expiry    密文有效期
-     * @return string             返回加密后的字符串
-     */
-    function authcode($string, $operation = 'decode', $key = '', $expiry = 0)
-    {
-        if(!(is_string($string) && in_array($operation,array('decode','encode')) && is_string($key) && (is_int($expiry) || is_string($expiry)) )){
+        if(!preg_match("/^[-]?0|([1-9][0-9]*)$/",$start)){
             return '';
         }
-        $expiry=intval($expiry);
-
-        // 动态密匙长度，相同的明文会生成不同密文就是依靠动态密匙
-        $ckey_length = 4;
-
-        // 密匙
-        $key = $key?md5($key):'';
-
-        // 密匙a会参与加解密
-        $keya = md5(substr($key, 0, 16));
-        // 密匙b会用来做数据完整性验证
-        $keyb = md5(substr($key, 16, 16));
-        // 密匙c用于变化生成的密文
-        $keyc = $ckey_length ? ($operation == 'decode' ? substr($string, 0, $ckey_length): substr(md5(microtime()), -$ckey_length)) : '';
-        // 参与运算的密匙
-        $cryptkey = $keya.md5($keya.$keyc);
-        $key_length = strlen($cryptkey);
-        // 明文，前10位用来保存时间戳，解密时验证数据有效性，10到26位用来保存$keyb(密匙b)，解密时会通过这个密匙验证数据完整性
-        // 如果是解码的话，会从第$ckey_length位开始，因为密文前$ckey_length位保存 动态密匙，以保证解密正确
-        $string = $operation == 'decode' ? base64_decode(substr($string, $ckey_length)) : sprintf('%010d', $expiry ? $expiry + time() : 0).substr(md5($string.$keyb), 0, 16).$string;
-        $string_length = strlen($string);
-        $result = '';
-        $box = range(0, 255);
-        $rndkey = array();
-        // 产生密匙簿
-        for($i = 0; $i <= 255; $i++) {
-            $rndkey[$i] = ord($cryptkey[$i % $key_length]);
-        }
-        // 用固定的算法，打乱密匙簿，增加随机性，好像很复杂，实际上对并不会增加密文的强度
-        for($j = $i = 0; $i < 256; $i++) {
-            $j = ($j + $box[$i] + $rndkey[$i]) % 256;
-            $tmp = $box[$i];
-            $box[$i] = $box[$j];
-            $box[$j] = $tmp;
-        }
-        // 核心加解密部分
-        for($a = $j = $i = 0; $i < $string_length; $i++) {
-            $a = ($a + 1) % 256;
-            $j = ($j + $box[$a]) % 256;
-            $tmp = $box[$a];
-            $box[$a] = $box[$j];
-            $box[$j] = $tmp;
-            // 从密匙簿得出密匙进行异或，再转成字符
-            $result .= chr(ord($string[$i]) ^ ($box[($box[$a] + $box[$j]) % 256]));
-        }
-        if($operation == 'decode') {
-            // substr($result, 0, 10) == 0 验证数据有效性
-            // substr($result, 0, 10) - time() > 0 验证数据有效性
-            // substr($result, 10, 16) == substr(md5(substr($result, 26).$keyb), 0, 16) 验证数据完整性
-            // 验证数据有效性，请看未加密明文的格式
-            if((substr($result, 0, 10) == 0 || substr($result, 0, 10) - time() > 0) && substr($result, 10, 16) == substr(md5(substr($result, 26).$keyb), 0, 16)) {
-                return substr($result, 26);
-            } else {
-                return '';
-            }
-        } else {
-            // 把动态密匙保存在密文里，这也是为什么同样的明文，生产不同密文后能解密的原因
-            // 因为加密后的密文可能是一些特殊字符，复制过程可能会丢失，所以用base64编码
-            return $keyc.str_replace('=', '', base64_encode($result));
-        }
-    }
-
-    /**
-     * escape编码  同JS的escape
-     * @param  string $str 待编码字符串
-     * @return string
-     */
-    function escape($str)
-    {
-        if(!(is_scalar($str) && $str!==true && $str!==false)){
+        if(!(preg_match("/^[-]?[1-9][0-9]*$/",$len) || is_null($len))){
             return '';
         }
-
-        preg_match_all("/[\xc2-\xdf][\x80-\xbf]+|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xff][\x80-\xbf]{3}|[\x01-\x7f]+/e",$str,$r);
-        //匹配utf-8字符，
-        $str = $r[0];
-        $l = count($str);
-        for($i=0; $i <$l; $i++){
-            $value = ord($str[$i][0]);
-            if($value < 223){
-                $str[$i] = rawurlencode(utf8_decode($str[$i]));
-                //先将utf8编码转换为ISO-8859-1编码的单字节字符，urlencode单字节字符.
-                //utf8_decode()的作用相当于iconv("UTF-8","CP1252",$v)。
-            }else{
-                $str[$i] = "%u".strtoupper(bin2hex(iconv("UTF-8","UCS-2",$str[$i])));
-            }
-        }
-        return join("",$str);
-    }
-
-    /**
-     * unescape编码  同JS的unescape
-     * @param  string $str 待解码字符串
-     * @return string
-     */
-    function unescape($str)
-    {
-        if(!(is_scalar($str) && $str!==true && $str!==false)){
+        if(!in_array($charset,array('utf-8','gb2312','gbk','big5'))){
             return '';
         }
-
-        $ret = '';
-        $len = strlen($str);
-        for ($i = 0; $i < $len; $i++){
-            if ($str[$i] == '%' && $str[$i+1] == 'u'){
-                $val = hexdec(substr($str, $i+2, 4));
-                if ($val < 0x7f) $ret .= chr($val);
-                else if($val < 0x800) $ret .= chr(0xc0|($val>>6)).chr(0x80|($val&0x3f));
-                else $ret .= chr(0xe0|($val>>12)).chr(0x80|(($val>>6)&0x3f)).chr(0x80|($val&0x3f));
-
-                $i += 5;
-            }else if ($str[$i] == '%'){
-                $ret .= urldecode(substr($str, $i, 3));
-                $i += 2;
-            }
-            else $ret .= $str[$i];
-        }
-        //$ret=iconv('utf-8', 'gb2312', $ret);
-        return $ret;
-    }
-
-    /**
-     * 字符串截取，支持中文和其他编码
-     * @param  string $str 需要转换的字符串
-     * @param  int    $start 开始位置
-     * @param  int    $length 截取长度
-     * @param  string $charset 编码格式
-     * @param  string $suffix 截断显示字符
-     * @return string
-     */
-    function msubstr($str, $start=0, $length=20, $charset="utf-8", $suffix='')
-    {
-        if(!(is_string($str) && is_int($start) && is_int($length) && in_array($charset,array('','','','',)) && is_string($suffix))){
+        if(!(is_scalar($suffix) && $suffix!==true && $suffix!==false)) {
             return '';
         }
+        if($str===''){
+            return '';
+        }
+        $str=strval($str);
 
-        if(function_exists("mb_substr"))
-            $slice = mb_substr($str, $start, $length, $charset);
-        elseif(function_exists('iconv_substr')) {
-            $slice = iconv_substr($str,$start,$length,$charset);
-            if(false === $slice) {
-                $slice = '';
-            }
+        $str_arr=str_to_array($str,$charset);
+
+        if(is_null($len)){
+            $slice = join("",array_slice($str_arr, $start));
         }else{
-            $re['utf-8']   = "/[\x01-\x7f]|[\xc2-\xdf][\x80-\xbf]|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xff][\x80-\xbf]{3}/";
-            $re['gb2312'] = "/[\x01-\x7f]|[\xb0-\xf7][\xa0-\xfe]/";
-            $re['gbk']    = "/[\x01-\x7f]|[\x81-\xfe][\x40-\xfe]/";
-            $re['big5']   = "/[\x01-\x7f]|[\x81-\xfe]([\x40-\x7e]|\xa1-\xfe])/";
-            preg_match_all($re[$charset], $str, $match);
-            $slice = join("",array_slice($match[0], $start, $length));
+            $slice = join("",array_slice($str_arr, $start, $len));
         }
-        return $suffix ? $slice.$suffix : $slice;
+
+        return $suffix!=='' ? $slice.$suffix : $slice;
     }
 
     /**
-     * 产生随机字串，可用来自动生成密码 默认长度6位 字母和数字混合
-     * @param  int    $len      长度
-     * @param  int    $type     字串类型 ， 0 字母 1 数字 2 大写字母 3 小写字母 4 汉字 默认数字字母混合
-     * @param  string $addChars 额外字符
+     * 产生随机字串 默认长度6位 字母和数字混合
+     * @param  integer  $len      长度
+     * @param  integer  $type     字串类型 ， 0 字母 1 数字 2 大写字母 3 小写字母 4 汉字 默认数字字母混合
+     * @param  string   $addChars 额外字符
      * @return string
      */
     function rand_string($len=6,$type=-1,$addChars='') 
     {
-        if(is_int($len) && (is_int($type)) && is_string($addChars)){
+        if(!preg_match("/^[1-9][0-9]*$/",$len)){
+            return '';
+        }
+        if(!in_array($type,array(0,1,2,3,4))){
+            $type==-1;
+        }
+        if(!(is_scalar($addChars) && $addChars!==true && $addChars!==false)) {
             return '';
         }
 
@@ -360,74 +163,244 @@
     }
 
     /**
-     * 将数字转换为大写金额
-     * @param  string|int $ns 数字金额
-     * @return string     转换后的大写金额
+     * 将一个字符串部分字符用*替代隐藏 支持中文  本函数依赖 str_to_array 函数
+     * @param  string       $str      待转换的字符串
+     * @param  integer      $start    起始位置 该参数详细用法同substr
+     * @param  integer|null $len      截取长度 null表示直到字符串结尾 该参数详细用法同substr
+     * @param  string       $hide_str 替代字符
+     * @param  string       $charset  编码格式
+     * @return string
      */
-    function cny($ns)
+    function hide_str($str, $start = 0, $len = null,$hide_str='*',$charset="utf-8")
     {
-        if(!preg_match("/^(0|([1-9][0-9]*))([\.][0-9]{1,2})?$/", $ns)){
+        if(!(is_scalar($str) && $str!==true && $str!==false)) {
             return '';
         }
-        static $cnums = array("零","壹","贰","叁","肆","伍","陆","柒","捌","玖"), 
-        $cnyunits = array("圆","角","分"), 
-        $grees = array("拾","佰","仟","万","拾","佰","仟","亿"); 
-        list($ns1,$ns2) = explode(".",$ns,2); 
-        $ns2 = array_filter(array($ns2[1],$ns2[0])); 
+        if(!preg_match("/^[-]?0|([1-9][0-9]*)$/",$start)){
+            return '';
+        }
+        if(!(preg_match("/^[-]?[1-9][0-9]*$/",$len) || is_null($len))){
+            return '';
+        }
+        if(!(is_scalar($hide_str) && $hide_str!==true && $hide_str!==false)) {
+            return '';
+        }
+        if($str===''){
+            return '';
+        }
+        $str=strval($str);
 
-        $arr=array(array(str_split($ns1),$grees),array('',$cnyunits));
-        foreach ($arr as $k => $v_arr) {
-            if($k==1)$v_arr[0]=$ret;
-            $ul = count($v_arr[1]); 
-            $xs = array(); 
-            foreach (array_reverse($v_arr[0]) as $x) { 
-                $l = count($xs); 
-                if($x!="0" || !($l%4)) {
-                    $n=($x=='0'?'':$x).($v_arr[1][($l-1)%$ul]); 
-                }
-                else{
-                    $n=is_numeric($xs[0][0]) ? $x : ''; 
-                }
-                array_unshift($xs, $n); 
-            } 
-            if($k==0){
-                $ret = array_merge($ns2,array(implode("", $xs), "")); 
+        $str_arr=str_to_array($str,$charset);
+
+        if(is_null($len)){
+            $len=count($str_arr);
+        }
+
+        $slice=array_slice($str_arr, $start, $len);
+        if(empty($slice)){
+            return $str;
+        }
+
+        $hide_str_arr=array_fill(0,count($slice),$hide_str);
+
+        array_splice($str_arr, $start, $len, $hide_str_arr);
+
+        return join("",$str_arr);
+    }
+
+    /**
+     * 加密解密字符串
+     * @param  string   $str       明文 或 密文
+     * @param  string   $operation decode表示解密,encode表示加密
+     * @param  string   $key       密匙
+     * @param  integer  $expiry    密文有效期 秒 0 永不过期
+     * @return string
+     */
+    function authcode($str, $operation = 'decode', $key = '', $expiry = 0)
+    {
+        if(!(is_scalar($str) && $str!==true && $str!==false)){
+            return '';
+        }
+        if(!in_array($operation,array('decode','encode'))){
+            return '';
+        }
+        if(!(is_scalar($key) && $key!==true && $key!==false)){
+            return '';
+        }
+        if(!preg_match("/^0|([1-9][0-9]*)$/", $expiry)){
+            return '';
+        }
+
+        // 动态密匙长度，相同的明文会生成不同密文就是依靠动态密匙
+        $ckey_length = 4;
+
+        // 密匙
+        $key = $key?md5($key):'';
+
+        // 密匙a会参与加解密
+        $keya = md5(substr($key, 0, 16));
+        // 密匙b会用来做数据完整性验证
+        $keyb = md5(substr($key, 16, 16));
+        // 密匙c用于变化生成的密文
+        $keyc = $ckey_length ? ($operation == 'decode' ? substr($str, 0, $ckey_length): substr(md5(microtime()), -$ckey_length)) : '';
+        // 参与运算的密匙
+        $cryptkey = $keya.md5($keya.$keyc);
+        $key_length = strlen($cryptkey);
+        // 明文，前10位用来保存时间戳，解密时验证数据有效性，10到26位用来保存$keyb(密匙b)，解密时会通过这个密匙验证数据完整性
+        // 如果是解码的话，会从第$ckey_length位开始，因为密文前$ckey_length位保存 动态密匙，以保证解密正确
+        $str = $operation == 'decode' ? base64_decode(substr($str, $ckey_length)) : sprintf('%010d', $expiry ? $expiry + time() : 0).substr(md5($str.$keyb), 0, 16).$str;
+        $string_length = strlen($str);
+        $result = '';
+        $box = range(0, 255);
+        $rndkey = array();
+        // 产生密匙簿
+        for($i = 0; $i <= 255; $i++) {
+            $rndkey[$i] = ord($cryptkey[$i % $key_length]);
+        }
+        // 用固定的算法，打乱密匙簿，增加随机性，好像很复杂，实际上对并不会增加密文的强度
+        for($j = $i = 0; $i < 256; $i++) {
+            $j = ($j + $box[$i] + $rndkey[$i]) % 256;
+            $tmp = $box[$i];
+            $box[$i] = $box[$j];
+            $box[$j] = $tmp;
+        }
+        // 核心加解密部分
+        for($a = $j = $i = 0; $i < $string_length; $i++) {
+            $a = ($a + 1) % 256;
+            $j = ($j + $box[$a]) % 256;
+            $tmp = $box[$a];
+            $box[$a] = $box[$j];
+            $box[$j] = $tmp;
+            // 从密匙簿得出密匙进行异或，再转成字符
+            $result .= chr(ord($str[$i]) ^ ($box[($box[$a] + $box[$j]) % 256]));
+        }
+        if($operation == 'decode') {
+            // substr($result, 0, 10) == 0 验证数据有效性
+            // substr($result, 0, 10) - time() > 0 验证数据有效性
+            // substr($result, 10, 16) == substr(md5(substr($result, 26).$keyb), 0, 16) 验证数据完整性
+            // 验证数据有效性，请看未加密明文的格式
+            if((substr($result, 0, 10) == 0 || substr($result, 0, 10) - time() > 0) && substr($result, 10, 16) == substr(md5(substr($result, 26).$keyb), 0, 16)) {
+                return substr($result, 26);
+            } else {
+                return '';
+            }
+        } else {
+            // 把动态密匙保存在密文里，这也是为什么同样的明文，生产不同密文后能解密的原因
+            // 因为加密后的密文可能是一些特殊字符，复制过程可能会丢失，所以用base64编码
+            return $keyc.str_replace('=', '', base64_encode($result));
+        }
+    }
+
+    /**
+     * escape编码  同JS的escape
+     * @param  string $str 待编码字符串
+     * @return string
+     */
+    function escape($str)
+    {
+        if(!(is_scalar($str) && $str!==true && $str!==false)){
+            return '';
+        }
+        if($str===''){
+            return '';
+        }
+
+        preg_match_all("/[\xc2-\xdf][\x80-\xbf]+|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xff][\x80-\xbf]{3}|[\x01-\x7f]+/e",$str,$r);
+        //匹配utf-8字符，
+        $str = $r[0];
+        $l = count($str);
+        for($i=0; $i <$l; $i++){
+            $value = ord($str[$i][0]);
+            if($value < 223){
+                $str[$i] = rawurlencode(utf8_decode($str[$i]));
+                //先将utf8编码转换为ISO-8859-1编码的单字节字符，urlencode单字节字符.
+                //utf8_decode()的作用相当于iconv("UTF-8","CP1252",$v)。
+            }else{
+                $str[$i] = "%u".strtoupper(bin2hex(iconv("UTF-8","UCS-2",$str[$i])));
             }
         }
-        $ret = implode("",array_reverse($xs)); 
-        $r=str_replace(array_keys($cnums), $cnums,$ret); 
+        return join("",$str);
+    }
 
-        preg_match_all("/./u", $r, $r_arr);
-        $rr='';
-        $prev_letter='';
-        foreach ($r_arr[0] as $k1 => $v1) {
-            if(!($v1==$prev_letter && $prev_letter=='零')){
-                $rr.=$v1;
-            }
-            $prev_letter=$v1;
+    /**
+     * unescape编码  同JS的unescape
+     * @param  string $str 待解码字符串
+     * @return string
+     */
+    function unescape($str)
+    {
+        if(!(is_scalar($str) && $str!==true && $str!==false)){
+            return '';
         }
-        return $rr;
+        if($str===''){
+            return '';
+        }
+
+        $ret = '';
+        $len = strlen($str);
+        for ($i = 0; $i < $len; $i++){
+            if ($str[$i] == '%' && $str[$i+1] == 'u'){
+                $val = hexdec(substr($str, $i+2, 4));
+                if ($val < 0x7f) $ret .= chr($val);
+                else if($val < 0x800) $ret .= chr(0xc0|($val>>6)).chr(0x80|($val&0x3f));
+                else $ret .= chr(0xe0|($val>>12)).chr(0x80|(($val>>6)&0x3f)).chr(0x80|($val&0x3f));
+
+                $i += 5;
+            }else if ($str[$i] == '%'){
+                $ret .= urldecode(substr($str, $i, 3));
+                $i += 2;
+            }
+            else $ret .= $str[$i];
+        }
+        //$ret=iconv('utf-8', 'gb2312', $ret);
+        return $ret;
     }
 
     /**
      * 将一个字符串转换成数组，支持中文
-     * @param  string $string 待转换成数组的字符串
-     * @return array         转换后的数组
+     * @param  string $str 待转换成数组的字符串
+     * @param  string       $charset 编码格式
+     * @return array
      */
-    function str_to_array($string)
+    function str_to_array($str,$charset='utf-8')
     {
-        if(is_string($string)){
+        if(!(is_scalar($str) && $str!==true && $str!==false)) {
             return array();
         }
-        $strlen = mb_strlen($string);
-        while ($strlen) {
-            $array[] = mb_substr($string, 0, 1, "utf8");
-            $string = mb_substr($string, 1, $strlen, "utf8");
-            $strlen = mb_strlen($string);
+        if(!in_array($charset,array('utf-8','gb2312','gbk','big5'))){
+            return array();
         }
+        if($str===''){
+            return array();
+        }
+        $str=strval($str);
+
+        $array=[];
+        if(function_exists("mb_substr")) {
+            $strlen = mb_strlen($str);
+            while ($strlen) {
+                $array[] = mb_substr($str, 0, 1, $charset);
+                $str = mb_substr($str, 1, $strlen, $charset);
+                $strlen = mb_strlen($str);
+            }
+        }elseif(function_exists('iconv_substr')) {
+            $strlen = iconv_strlen($str);
+            while ($strlen) {
+                $array[] = iconv_substr($str, 0, 1, $charset);
+                $str = iconv_substr($str, 1, $strlen, $charset);
+                $strlen = iconv_strlen($str);
+            }
+        }else{
+            $re['utf-8']   = "/[\x01-\x7f]|[\xc2-\xdf][\x80-\xbf]|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xff][\x80-\xbf]{3}/";
+            $re['gb2312'] = "/[\x01-\x7f]|[\xb0-\xf7][\xa0-\xfe]/";
+            $re['gbk']    = "/[\x01-\x7f]|[\x81-\xfe][\x40-\xfe]/";
+            $re['big5']   = "/[\x01-\x7f]|[\x81-\xfe]([\x40-\x7e]|\xa1-\xfe])/";
+            preg_match_all($re[$charset], $str, $match);
+            $array=$match[0];
+        }
+
         return $array;
     }
-
 
     /**
      * 判断是否为索引数组
@@ -478,90 +451,13 @@
     }
 
     /**
-     * 获取无限分类的完整父级id
-     * @param  array  $data
-     * @param  string $pid parent标记字段
-     * @return array
-     */
-    /*
-    输入数据
-    [
-        ['id'=>1,'pid'=>0,...],
-        ['id'=>2,'pid'=>1,...],
-        ['id'=>3,'pid'=>2,...],
-        ['id'=>4,'pid'=>0,...],
-        ['id'=>5,'pid'=>4,...],
-    ]
-     */
-    /*
-    输出数据
-    [
-        ['id'=>1,'pid'=>0,'full_pid'=>[0]],
-        ['id'=>2,'pid'=>1,'full_pid'=>[0,1]],
-        ['id'=>3,'pid'=>2,'full_pid'=>[0,1,2]],
-        ['id'=>4,'pid'=>0,'full_pid'=>[0]],
-        ['id'=>5,'pid'=>4,'full_pid'=>[0,4]],
-    ]
-     */
-    function get_full_pid($data,$pid = 'pid')
-    {
-        if(!is_array($data) || empty($data)){
-            return [];
-        }
-        if(!is_string($pid)){
-            $pid='pid';
-        }
-        $items=[];
-        foreach($data as $k=>$v){
-            if(isset($v['id']) && isset($v[$pid])){
-                $items[$v['id']]=$v;
-
-                $data[$k]['full_pid']=[$v[$pid]];
-                $data[$k]['done']=false;
-            }else{
-                $data[$k]['full_pid']=[];
-                $data[$k]['done']=true;
-            }
-        }
-
-        while(true){
-            $flag=true;
-            foreach($data as $k=>$v){
-                if(!$v['done']){
-                    $flag=false;
-                }else{
-                    continue;
-                }
-
-                if(in_array($v['id'],$v['full_pid'])){
-                    $data[$k]['full_pid']=[];
-                    $data[$k]['done']=true;
-                    continue;
-                }
-
-                if(isset($items[$v['full_pid'][0]])){
-                    array_unshift($v['full_pid'],$items[$v['full_pid'][0]][$pid]);
-                    $data[$k]['full_pid']=$v['full_pid'];
-                }else{
-                    $data[$k]['done']=true;
-                }
-
-            }
-
-            if($flag){
-                break;
-            }
-        }
-
-        foreach($data as &$v){
-            unset($v['done']);
-        }
-        return $data;
-    }
-
-    /**
      * 获取无限分类的树形结构数据
-     * @param  array $data
+     * @param array  $list        待处理数组
+     * @param string $id_field    id标记字段
+     * @param string $pid_field   父级id标记字段
+     * @param string $child_field 子级数据标记字段
+     * @param mix    $root_id     根id
+     * @param bool   $self        是否返回根id对应的数据
      * @return array
      */
     /*
@@ -623,55 +519,76 @@
 
     )
      */
-    function list_to_tree($list, $pk='id',$pid = 'pid',$child = '_child',$root=0)
+    function get_tree($list=array(), $id_field='id',$pid_field = 'pid',$child_field = '_child',$root_id=0,$self=true)
     {
         if(!is_array($list) || empty($list)){
             return [];
         }
-        if(!is_string($pid)){
-            $pid='pid';
+        if(!(is_string($id_field) && is_string($pid_field) && is_string($child_field) )){
+            return [];
         }
+        if(!(is_scalar($root_id) && $root_id!==true && $root_id!==false)) {
+            return [];
+        }
+        if(!is_bool($self)){
+            return [];
+        }
+
+        $root_id=strval($root_id);
 
         $items=array();
         $tree = array();
         $not_root_items=array();
-        foreach($datas as $data){
-            if(!isset($data[$pk]) || !isset($data[$pid])){
-                return [];
+        foreach($list as $data){
+            if(!(isset($data[$id_field]) && isset($data[$pid_field]))){
+                continue;
             }
 
             $item=new stdClass();
-
             foreach($data as $k=>$v){
                 $item->$k=$v;
             }
+            $item->$child_field = array();
 
-            $id = $data['id'];
-            $level = $data['pid'];
-
-            $item->$child = array();
+            $id = $data[$id_field];
+            $pid = strval($data[$pid_field]);
             $items[$id]=$item;
-            if ($level) {
+
+            if($pid===$root_id){
+                $tree[] = $item;
+            }else{
                 $not_root_items[]=$item;
-            } else {
-                if($item->$pid==$root){
-                    $tree[] = $item;
-                }
             }
         }
         foreach($not_root_items as $item){
-            $level=$item->$pid;
-            $items[$level][$child][]=$item;
+            $level=$item->$pid_field;
+            if(isset($items[$level])){
+                array_push($items[$level]->$child_field, $item);
+            }
         }
-        return json_decode( json_encode($tree),true);
+
+        $tree_data=json_decode( json_encode($tree),true);
+        if($self && isset($items[$root_id])){
+            $res=$items[$root_id];
+            $res->$child_field=$tree_data;
+        }else{
+            $res=$tree_data;
+        }
+
+        return json_decode( json_encode($res),true);
     }
+
 
     /**
      * 获取无限分类的树形结构文本数据
-     * @param  integer $id     当前ID
-     * @param  array $data   待处理数据
-     * @param  boolean $self   是否包含自己
+     * @param array  $list        待处理数组
+     * @param string $id_field    id标记字段
+     * @param string $pid_field   父级id标记字段
+     * @param string $name_field  名称标记字段
+     * @param mix    $root_id     根id
+     * @param bool   $self        是否返回根id对应的数据
      * @return array
+     *
      * $data 格式：
      * array(
      *  array('id'=>1,'pid'=>0,'name'=>'aaa',...),
@@ -685,38 +602,64 @@
      *  ...
      * )
      */
-    function get_tree_text($datas=array(),$id=0,$self=true)
+    function get_tree_text($list=array(),$id_field='id',$pid_field = 'pid',$name_field='name',$root_id=0,$self=true)
     {
+        if(!is_array($list) || empty($list)){
+            return array(1);
+        }
+        if(!(is_string($id_field) && is_string($pid_field) && is_string($name_field) )){
+            return array(2);
+        }
+        if(!(is_scalar($root_id) && $root_id!==true && $root_id!==false)) {
+            return array(3);
+        }
+        if(!is_bool($self)){
+            return array(4);
+        }
+
+        $root_id=strval($root_id);
+
         static $res=array();
 
         $arg_num=func_num_args();
-        if($arg_num!=4){
-            $level=$self && $id!=0?1:0;
-
-            if($self && $id!=0){
-                foreach($datas as $v){
-                    if($v['id']==$id){
-                        $res[]=$v;
-                        break;
-                    }
+        if($arg_num!=7){
+            $root_item=array();
+            foreach($list as $v){
+                if(strval($v[$id_field])===$root_id){
+                    $root_item=$v;
+                    break;
                 }
             }
+            if(empty($root_item)){
+                $level=0;
+            }else{
+                if($self){
+                    $level=1;
+                    $root_item['level']=1;
+                    $res[]=$root_item;
+                }else{
+                    $level=0;
+                }
+
+            }
         }else{
-            $level=func_get_arg(3);
+            $level=func_get_arg(6);
         }
         $level++;
 
         $filter_datas=array();
-        foreach($datas as $v){
-            if($v['pid']==$id){
-                $filter_datas[]=$v;
+        foreach($list as $v){
+            if(isset($v[$id_field]) && isset($v[$pid_field]) && isset($v[$name_field])){
+                if(strval($v[$pid_field])===$root_id){
+                    $filter_datas[]=$v;
+                }
             }
         }
 
         foreach($filter_datas as $v){
             $v['level']=$level;
             $res[]=$v;
-            get_tree_text($datas,$v['id'],$self,$level);
+            get_tree_text($list,$id_field,$pid_field,$name_field,$v[$id_field],$self,$level);
         }
 
         $resx=array();
@@ -741,7 +684,7 @@
                     $separate1='';
                     $separate2=str_repeat("&nbsp;&nbsp;&nbsp;&nbsp;└", $v['level']-1);
                 }
-                $v['fullname']=html_entity_decode($separate1.$separate2).' '.$v['name'];
+                $v['fullname']=html_entity_decode($separate1.$separate2).' '.$v[$name_field];
                 $resx[]=$v;
             }
         }
@@ -751,7 +694,91 @@
     }
 
     /**
-     * 删除目录
+     * 获取无限分类的完整父级路径
+     * @param array  $list        待处理数组
+     * @param string $id_field    id标记字段
+     * @param string $pid_field   父级id标记字段
+     * @return array
+     */
+    /*
+    输入数据
+    [
+        ['id'=>1,'pid'=>0,...]
+        ['id'=>2,'pid'=>1,...],
+        ['id'=>3,'pid'=>2,...],
+        ['id'=>4,'pid'=>0,...],
+        ['id'=>5,'pid'=>4,...],
+    ]
+     */
+    /*
+    输出数据
+    [
+        ['id'=>1,'pid'=>0,'full_pid'=>[0]],
+        ['id'=>2,'pid'=>1,'full_pid'=>[0,1]],
+        ['id'=>3,'pid'=>2,'full_pid'=>[0,1,2]],
+        ['id'=>4,'pid'=>0,'full_pid'=>[0]],
+        ['id'=>5,'pid'=>4,'full_pid'=>[0,4]],
+    ]
+     */
+    function get_tree_path($list=array(),$id_field="id",$pid_field = 'pid')
+    {
+        if(!is_array($list) || empty($list)){
+            return [];
+        }
+        if(!(is_string($id_field) && is_string($pid_field) )){
+            return [];
+        }
+
+        $items=[];
+        foreach($list as $k=>$v){
+            if(isset($v[$id_field]) && isset($v[$pid_field])){
+                $items[$v[$id_field]]=$v;
+
+                $list[$k]['full_pid']=[$v[$pid_field]];
+                $list[$k]['done']=false;
+            }else{
+                $list[$k]['full_pid']=[];
+                $list[$k]['done']=true;
+            }
+        }
+
+        while(true){
+            $flag=true;
+            foreach($list as $k=>$v){
+                if(!$v['done']){
+                    $flag=false;
+                }else{
+                    continue;
+                }
+
+                if(in_array($v[$id_field],$v['full_pid'])){
+                    $list[$k]['full_pid']=[];
+                    $list[$k]['done']=true;
+                    continue;
+                }
+
+                if(isset($items[$v['full_pid'][0]])){
+                    array_unshift($v['full_pid'],$items[$v['full_pid'][0]][$pid_field]);
+                    $list[$k]['full_pid']=$v['full_pid'];
+                }else{
+                    $list[$k]['done']=true;
+                }
+
+            }
+
+            if($flag){
+                break;
+            }
+        }
+
+        foreach($list as &$v){
+            unset($v['done']);
+        }
+        return $list;
+    }
+
+    /**
+     * 删除目录(包括子目录和文件)
      * @param  string $path 目录路径
      * @return boolean
      */
@@ -791,73 +818,132 @@
     }
 
     /**
-     * 将一个字符串部分字符用*替代隐藏  支持中文
-     * @param  string  $string  待转换的字符串
-     * @param  integer $bengin  起始位置，从0开始计数
-     * @param  integer $len     需要转换成*的字符个数，当$type=4时，表示右侧保留长度
-     * @param  integer $hidestr 替代字符
-     * @param  integer $type    转换类型：0，在整个字符串中 从左向右隐藏；
-     *                                    1，在整个字符串中 从右向左隐藏；
-     *                                    2，在分隔符前的字符串中 由右向左隐藏；
-     *                                    3，在分隔符后的字符串中 由左向右隐藏；
-     *                                    4，从指定位置开始保留最右侧指定长度，其余用*代替
-     * @param  string  $glue    分割符
-     * @return string           处理后的字符串
+     * 获取当前时间毫秒
+     * @return string
      */
-    function hide_str($string, $bengin = 0, $len = 4,$hidestr='*')
+    function get_microtime(){
+        list($usec, $sec) = explode(' ', microtime());
+        $usec2msec = $usec * 1000;    //计算微秒部分的毫秒数(微秒部分并不是微秒,这部分的单位是秒)
+        $sec2msec = $sec * 1000;    //计算秒部分的毫秒数
+        $usec2msec2float = (float)$usec2msec;
+        $sec2msec2float = (float)$sec2msec;
+        $msec = $usec2msec2float + $sec2msec2float; //加起来就对了
+        $arrMsc = explode('.', $msec);
+        return $arrMsc[0];
+    }
+
+    /**
+     * 字节格式化 把字节数格式为 B K M G T 描述的大小
+     * @param  int $size 字节数
+     * @param  int $dec  小数点后保留的位数
+     * @return string
+     */
+    function byte_format($size, $dec=2)
     {
-        if (empty($string))
+        if(!preg_match("/^0|([1-9][0-9]*)$/", $size)){
+            return '';
+        }
+        if(!preg_match("/^0|([1-9][0-9]*)$/", $dec)){
+            return '';
+        }
+
+        $size=intval($size);
+        $dec=intval($dec);
+        $a = array("B", "KB", "MB", "GB", "TB", "PB");
+        $pos = 0;
+        while ($size >= 1024) {
+            $size /= 1024;
+            $pos++;
+        }
+        return round($size,$dec)." ".$a[$pos];
+    }
+
+    /**
+     * 根据PHP各种类型变量生成唯一标识号
+     * @param  mixed  $mix 变量
+     * @return string
+     */
+    function to_guid_string($mix)
+    {
+        if (is_object($mix) && function_exists('spl_object_hash')) {
+            return spl_object_hash($mix);
+        } elseif (is_resource($mix)) {
+            $mix = get_resource_type($mix) . strval($mix);
+        } else {
+            $mix = serialize($mix);
+        }
+        return md5($mix);
+    }
+
+    /**
+     * 优化的require_once
+     * @param  string  $filename 文件地址
+     * @return boolean
+     */
+    function require_cache($filename)
+    {
+        if(!is_string($filename)){
             return false;
-        $array = array();
-        if ($type == 0 || $type == 1 || $type == 4) {
-            $strlen = $length = mb_strlen($string);
-            while ($strlen) {
-                $array[] = mb_substr($string, 0, 1, "utf8");
-                $string = mb_substr($string, 1, $strlen, "utf8");
-                $strlen = mb_strlen($string);
+        }
+
+        static $_importFiles = array();
+        if (!isset($_importFiles[$filename])) {
+            if (file_exists_case($filename)) {
+                require $filename;
+                $_importFiles[$filename] = true;
+            } else {
+                $_importFiles[$filename] = false;
             }
         }
-        switch ($type) {
-            case 1:
-                $array = array_reverse($array);
-                for ($i = $bengin; $i < ($bengin + $len); $i++) {
-                    if (isset($array[$i]))
-                        $array[$i] = "$hidestr";
-                }
-                $string = implode("", array_reverse($array));
-                break;
-            case 2:
-                $array = explode($glue, $string);
-                $array[0] = hide_str($array[0], $bengin, $len, 1);
-                $string = implode($glue, $array);
-                break;
-            case 3:
-                $array = explode($glue, $string);
-                $array[1] = hide_str($array[1], $bengin, $len, 0);
-                $string = implode($glue, $array);
-                break;
-            case 4:
-                $left = $bengin;
-                $right = $len;
-                $tem = array();
-                for ($i = 0; $i < ($length - $right); $i++) {
-                    if (isset($array[$i]))
-                        $tem[] = $i >= $left ? "$hidestr" : $array[$i];
-                }
-                $array = array_chunk(array_reverse($array), $right);
-                $array = array_reverse($array[0]);
-                for ($i = 0; $i < $right; $i++) {
-                    $tem[] = $array[$i];
-                }
-                $string = implode("", $tem);
-                break;
-            default:
-                for ($i = $bengin; $i < ($bengin + $len); $i++) {
-                    if (isset($array[$i]))
-                        $array[$i] = "$hidestr";
-                }
-                $string = implode("", $array);
-                break;
+        return $_importFiles[$filename];
+    }
+
+    /**
+     * 将数字转换为大写金额
+     * @param  string|int $ns 数字金额
+     * @return string     转换后的大写金额
+     */
+    function cny($ns)
+    {
+        if(!preg_match("/^(0|([1-9][0-9]*))([\.][0-9]{1,2})?$/", $ns)){
+            return '';
         }
-        return $string;
+        static $cnums = array("零","壹","贰","叁","肆","伍","陆","柒","捌","玖"),
+        $cnyunits = array("圆","角","分"),
+        $grees = array("拾","佰","仟","万","拾","佰","仟","亿");
+        list($ns1,$ns2) = explode(".",$ns,2);
+        $ns2 = array_filter(array($ns2[1],$ns2[0]));
+
+        $arr=array(array(str_split($ns1),$grees),array('',$cnyunits));
+        foreach ($arr as $k => $v_arr) {
+            if($k==1)$v_arr[0]=$ret;
+            $ul = count($v_arr[1]);
+            $xs = array();
+            foreach (array_reverse($v_arr[0]) as $x) {
+                $l = count($xs);
+                if($x!="0" || !($l%4)) {
+                    $n=($x=='0'?'':$x).($v_arr[1][($l-1)%$ul]);
+                }
+                else{
+                    $n=is_numeric($xs[0][0]) ? $x : '';
+                }
+                array_unshift($xs, $n);
+            }
+            if($k==0){
+                $ret = array_merge($ns2,array(implode("", $xs), ""));
+            }
+        }
+        $ret = implode("",array_reverse($xs));
+        $r=str_replace(array_keys($cnums), $cnums,$ret);
+
+        preg_match_all("/./u", $r, $r_arr);
+        $rr='';
+        $prev_letter='';
+        foreach ($r_arr[0] as $k1 => $v1) {
+            if(!($v1==$prev_letter && $prev_letter=='零')){
+                $rr.=$v1;
+            }
+            $prev_letter=$v1;
+        }
+        return $rr;
     }
