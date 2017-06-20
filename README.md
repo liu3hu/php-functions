@@ -67,6 +67,9 @@
 **get_array_dimension**
 > 获取数组维度
 
+**array_remove_value**
+> 删除数组的值
+
 ----------
 
 ## 无限分类相关

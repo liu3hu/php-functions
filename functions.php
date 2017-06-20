@@ -451,6 +451,25 @@
     }
 
     /**
+     * 删除数组的值，不会重建索引，支持删除多维数组中的值
+     * @param array &$arr 目标数组
+     * @param array $del_arr 需删除的值数组
+     * @param boolean $strict 是否严格模式，严格模式将比较类型
+     * @return void
+     */
+    function array_remove_value(&$arr, $del_arr,$strict=false){
+        foreach ($arr as $key => $value) {
+            if (is_array($value)) {
+                array_remove_value($arr[$key], $var);
+            } else {
+                if (in_array($value,$del_arr,$strict)) {
+                    unset($arr[$key]); } else { $arr[$key] = $value;
+                }
+            }
+        }
+    }
+
+    /**
      * 获取无限分类的树形结构数据
      * @param array  $list        待处理数组
      * @param string $id_field    id标记字段
