@@ -909,7 +909,7 @@
             return '';
         }
         static $cnums = array("零","壹","贰","叁","肆","伍","陆","柒","捌","玖"),
-        $cnyunits = array("圆","角","分"),
+        $cnyunits = array("元","角","分"),
         $grees = array("拾","佰","仟","万","拾","佰","仟","亿");
         list($ns1,$ns2) = explode(".",$ns,2);
         $ns2 = array_filter(array($ns2[1],$ns2[0]));
