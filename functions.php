@@ -1,56 +1,5 @@
 <?php
     /**
-     * 常用验证
-     * @param  mixed   $value 待验证值
-     * @param  string  $type  验证类型
-     * @return boolean
-     */
-    function validation($value,$type)
-    {
-        if(!(is_scalar($value) && $value!==true && $value!==false)){
-            return false;
-        }
-        if(!is_string($type)){
-            return false;
-        }
-
-        $all_phone_prefix='';
-        if($type==='cellphone'){
-            $phone_prefix=array(
-                'unicom' =>array('130','131','132','145','155','156','176','185','186'),
-                'telecom'=>array('133','153','173','175','177','180','181','189'),
-                'mobile' =>array('134','135','136','137','138','139','147','150','151','152','157','158','159','178','182','183','184','187','188'),
-                'virtual'=>array('170','171'),
-            );
-            $all_phone_prefix_arr=array();
-            foreach($phone_prefix as $arr){
-                $all_phone_prefix_arr=array_merge($all_phone_prefix_arr,$arr);
-            }
-            $all_phone_prefix=implode('|',$all_phone_prefix_arr);
-        }
-        
-        $types=array(
-            'email'     =>"/^[0-9a-zA-Z]+(?:[\_\.\-][a-z0-9\-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\.[a-zA-Z]+$/i",//邮箱
-            'money'     =>"/^(0|([1-9][0-9]*))([\.][0-9]{1,2})?$/",//金额
-            'cellphone' =>"/^($all_phone_prefix)[0-9]{8}$/",//手机号
-            'password'  =>"/^[0-9a-zA-Z_]{6,16}$/i",//密码 由数字、字母、下划线组成,长度6-16位
-            'username'  =>"/^[a-z][0-9a-z_]{0,29}$/", //用户名 小写字母开头由数字、小写字母、下划线组成,长度不大于30位
-            'int'       =>"/^[-]?0|([1-9][0-9]*)$/",//整数
-            'int_no_zore'=>"/^[-]?[1-9][0-9]*$/",//非零整数
-            'z_int'     =>"/^[1-9][0-9]*$/",//正整数
-            'z_int_zero'=>"/^0|([1-9][0-9]*)$/",//正整数和零
-            'f_int'     =>"/^[-][1-9][0-9]*$/",//负整数
-            'f_int_zero'=>"/^0|([-][1-9][0-9]*)$/",//负整数和零
-        );
-
-        if(!isset($types[$type])){
-            return false;
-        }
-
-        return preg_match($types[$type], $value);
-    }
-
-    /**
      * 判断是否SSL协议
      * @return boolean
      */
