@@ -946,7 +946,7 @@
                 $prev_page=$current_page>=$total_pages?$total_pages-1:$current_page-1;
                 array_push($pagebar,['page_text'=>'上一页','page_value'=>$prev_page]);
             }
-            
+
             if($pagebar_width%2==0){
                 $pagebar_width=$pagebar_width+1;
             }
