@@ -915,3 +915,60 @@
         }
         return $rr;
     }
+
+    /**
+     * @param int $current_page     当前页码
+     * @param int $pagesize         每页数据条数
+     * @param int $total            数据总条数
+     * @param int $pagebar_width    分页条显示的页码按钮数量
+     * @return array
+     */
+    function paginator($current_page=1,$pagesize=10,$total=0,$pagebar_width=9)
+    {
+        $current_page=intval($current_page);
+        $current_page=$current_page<=0?1:$current_page;
+        $pagesize=intval($pagesize);
+        if($pagesize<=0){
+            return [];
+        }
+        $total=intval($total);
+        $total=$total<0?0:$total;
+        $pagebar_width=intval($pagebar_width);
+        $pagebar_width=$pagebar_width<0?0:$pagebar_width;
+
+        $pagebar=[];
+        $total_pages=ceil($total/$pagesize);
+
+        if($total_pages>1){
+            //上一页
+            if($current_page>1){
+                array_push($pagebar,['page_text'=>'首页','page_value'=>1]);
+                $prev_page=$current_page>=$total_pages?$total_pages-1:$current_page-1;
+                array_push($pagebar,['page_text'=>'上一页','page_value'=>$prev_page]);
+            }
+
+
+
+            if($pagebar_width%2==0){
+                $pagebar_width=$pagebar_width+1;
+            }
+            $n=floor($pagebar_width/2);
+            if($total_pages-$current_page>=$n){
+                $page_start=$current_page-$n<1?1:$current_page-$n;
+                $page_end=2*$n+$page_start>$total_pages?$total_pages:2*$n+$page_start;
+            }else{
+                $page_end=$current_page+$n>$total_pages?$total_pages:$current_page+$n;
+                $page_start=($page_end-2*$n)<1?1:$page_end-2*$n;
+            }
+            for($i=$page_start;$i<=$page_end;$i++){
+                array_push($pagebar,['page_text'=>$i,'page_value'=>$i]);
+            }
+
+            //下一页
+            if($current_page<$total_pages){
+                array_push($pagebar,['page_text'=>'下一页','page_value'=>$current_page+1]);
+                array_push($pagebar,['page_text'=>'末页','page_value'=>$total_pages]);
+            }
+        }
+        return $pagebar;
+    }
