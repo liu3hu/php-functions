@@ -13,6 +13,54 @@
         return false;
     }
 
+    //代理ip验证
+    /**
+     * @param string $ip    代理ip
+     * @param string $port  端口
+     * @param string $type  类型 http https socks4 socks5
+     * @return boolean
+     */
+    function checkProxy($ip='',$port='',$type='http')
+    {
+        header("Content-type:text/html;charset=utf-8");
+
+        if(empty($ip)){
+            return false;
+        }
+        if(empty($port)){
+            $port='80';
+        }
+
+        $type_map=array(
+            'http'=>'CURLPROXY_HTTP',
+            'https'=>'CURLPROXY_HTTPS',
+            'socks4'=>'CURLPROXY_SOCKS4',
+            'socks5'=>'CURLPROXY_SOCKS5',
+        );
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, 'http://baidu.com/');
+        curl_setopt($curl, CURLOPT_HEADER, 0);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        if(isset($type_map[$type])){
+            curl_setopt($curl, CURLOPT_PROXYTYPE, $type_map[$type]);
+        }
+        curl_setopt($curl, CURLOPT_PROXY, $ip);
+        curl_setopt($curl, CURLOPT_PROXYPORT, $port);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 15);
+        $response = curl_exec( $curl );
+        curl_close($curl);
+
+        if(empty($response)){
+            return false;
+        }
+
+        if(strpos($response,"url=http://www.baidu.com/")!==false){
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 字符串截取，支持中文和其他编码  本函数依赖 str_to_array 函数
      * @param  string       $str     需要转换的字符串
