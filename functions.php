@@ -1018,3 +1018,110 @@
         }
         return $pagebar;
     }
+
+	/**
+     * 车牌验证
+     * @param string $plateno 车牌号
+     * @return boolean
+     */
+    function platenoCheck($plateno = '')
+	{
+        if(!is_string($plateno) || empty($plateno)){
+            return false;
+        }
+
+		$arr = str_to_array($plateno);
+
+		if(!(count($arr) == 7 || count($arr) == 8)){
+			return false;
+		}
+
+		$short_provinces = ['黑','吉','辽','蒙','新','甘','陕','宁','青','藏','云','贵','川','粤','桂','鄂','湘','豫','冀','鲁','晋','苏','浙','闽','皖','赣','京','津','沪','渝','琼'];
+		$letters = range('A', 'Z');
+        $chars = array_merge($letters, range(0, 9));
+
+		if(!in_array($arr[0], $short_provinces)){
+			return false;
+		}
+
+		if(!in_array($arr[1], $letters)){
+			return false;
+		}
+		
+		unset($arr[0], $arr[1]);
+
+		if(!empty(array_diff($arr, $chars))){
+			return false;
+		}
+
+        return true;
+    }
+
+    /**
+     * 获取两个经纬度之间的距离
+     * @param array $from_coords ['lng'=>'经度', 'lat'=>'纬度']
+     * @param array $to_coords ['lng'=>'经度', 'lat'=>'纬度']
+     * @return integer|null
+     */
+    function getDistanceByCoords($from_coords = [], $to_coords = [])
+    {
+        foreach(['lng','lat'] as $k){
+            if(empty($from_coords[$k]) || empty($to_coords[$k])){
+                return null;
+            }
+            if(!is_numeric($from_coords[$k]) || !is_numeric($to_coords[$k])){
+                return null;
+            }
+        }
+
+        $lng1=$from_coords['lng'];
+        $lat1=$from_coords['lat'];
+
+        $lng2=$to_coords['lng'];
+        $lat2=$to_coords['lat'];
+
+        // 将角度转为狐度
+        $radLat1 = deg2rad($lat1); //deg2rad()函数将角度转换为弧度
+        $radLat2 = deg2rad($lat2);
+        $radLng1 = deg2rad($lng1);
+        $radLng2 = deg2rad($lng2);
+        $a = $radLat1 - $radLat2;
+        $b = $radLng1 - $radLng2;
+        $s = 2 * asin(sqrt(pow(sin($a / 2), 2) + cos($radLat1) * cos($radLat2) * pow(sin($b / 2), 2))) * 6378.137 * 1000;
+
+        return round($s);
+    }
+
+    /**
+     * 常用的正则验证
+     * @param  string $rule 匹配规则
+     * @param string $value 待验证值
+     * @return boolean
+     */
+    function regexCheck($rule = '', $value = '')
+    {
+        $rules=array(
+            'email'				=> "/^[0-9a-zA-Z]+(?:[\_\.\-][a-z0-9\-]+)*@[a-zA-Z0-9]+(?:[-.][a-zA-Z0-9]+)*\.[a-zA-Z]+$/",//邮箱
+            'cellphone'			=> "/^(13[0-9]|14[579]|15[0-3,5-9]|16[6]|17[0135678]|18[0-9]|19[89])\d{8}$/",//手机号
+			'username'			=> "/^[a-zA-Z][0-9a-zA-Z_]*$/", //用户名 字母开头由数字、字母、下划线组成
+            'password'			=> "/^[0-9a-zA-Z_]+$/",//密码 由数字、字母、下划线组成
+            'int'				=> "/^[-]?(0|[1-9]\d*)$/",//整数
+            'int_without_zero'	=> "/^([-]?[1-9]\d*)$/",//非零整数
+            'int_gt_zero'		=> "/^[1-9]\d*$/",//正整数
+            'int_egt_zero'		=> "/^(0|[1-9]\d*)$/",//正整数和零
+            'int_lt_zero'		=> "/^-[1-9]\d*$/",//负整数
+            'int_elt_zero'		=> "/^(0|-[1-9]\d*)$/",//负整数和零
+			'money'				=> "/^(0|[1-9]\d*)([\.]\d{1,2})?$/",//金额
+            'config_item'		=> "/^([a-z_]+[\.]?)*[a-z_]+$/",//配置项键规则
+        );
+
+        if(is_string($rule) && is_string($value) && !empty($rule)){
+            if(!in_array($rule, array_keys($rules))){
+                return false;
+            }
+        }else{
+            return false;
+        }
+
+        return !!preg_match($rules[$rule], $value);
+    }
